@@ -1,0 +1,41 @@
+service:
+  name: fsl-blog-api-gateway-uploads
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  httpApi:
+    payload: '2.0'
+    cors: true
+  iamRoleStatements:
+    # our functions need to interact with objects in the uploads bucket
+    - Effect: Allow
+      Action:
+        - s3:ListBucket
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+      Resource:
+        - {'Fn::Join': ['', ['arn:aws:s3:::', {Ref: 'UploadsBucket'}]]}
+        - {'Fn::Join': ['', ['arn:aws:s3:::', {Ref: 'UploadsBucket'}, '/*']]}
+  environment:
+    UPLOADS_BUCKET: {Ref: 'UploadsBucket'}
+
+functions:
+  - ${file(examples/signed-putobject/serverless.yml):functions}
+
+resources:
+  Resources:
+    # the S3 bucket where we want our uploaded files to end up
+    UploadsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        # this CORS policy is needed for direct uploads from browsers
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins: [ '*' ]
+              AllowedMethods: [ GET, HEAD, PUT, POST ]
+              AllowedHeaders: [ 'Content-Type' ]
+  Outputs:
+    UploadsBucketName:
+      Value: {Ref: 'UploadsBucket'}
